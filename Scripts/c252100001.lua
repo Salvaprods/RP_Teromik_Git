@@ -1,10 +1,14 @@
 -- Ravitaillement Kuriboh
 local s,id=GetID()
 
+local CREPUSCULE=6309986
+local MULTIPLICATEUR=40703222
+local LIENKURIBOH=41999284
+
 function s.initial_effect(c)
-	-- Envoyez 1 monstre "Kuriboh" depuis la main au Cimetière ;
-	-- ajoutez 1 monstre "Kuriboh" de nom différent depuis le Deck,
-	-- puis vous pouvez payer 1000 LP pour ajouter aussi 1 Magie/Piège "Kuriboh"
+	-- Envoyer 1 Kuriboh depuis la main ;
+	-- ajouter 1 Kuriboh de nom différent,
+	-- puis optionnellement payer 1000 LP pour ajouter une M/P
 	local e1=Effect.CreateEffect(c)
 	e1:SetCategory(CATEGORY_TOGRAVE+CATEGORY_SEARCH+CATEGORY_TOHAND)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
@@ -16,22 +20,30 @@ function s.initial_effect(c)
 	c:RegisterEffect(e1)
 end
 
--- =========================================================
--- MONSTRE "KURIBOH" À AJOUTER
--- Nom différent du monstre envoyé
--- =========================================================
-function s.thfilter(c,code)
+s.listed_series={0xa4}
+s.listed_names={CREPUSCULE,MULTIPLICATEUR,LIENKURIBOH}
+
+-- =========================================
+-- MONSTRE KURIBOH
+-- Lienkuriboh forcé comme Kuriboh
+-- =========================================
+function s.iskuriboh(c)
 	return c:IsSetCard(0xa4)
+		or c:IsCode(LIENKURIBOH)
+end
+
+function s.thfilter(c,code)
+	return s.iskuriboh(c)
 		and c:IsType(TYPE_MONSTER)
 		and not c:IsCode(code)
 		and c:IsAbleToHand()
 end
 
--- =========================================================
--- MONSTRE "KURIBOH" À ENVOYER DEPUIS LA MAIN
--- =========================================================
+-- =========================================
+-- COÛT : KURIBOH DEPUIS LA MAIN
+-- =========================================
 function s.costfilter(c,tp)
-	return c:IsSetCard(0xa4)
+	return s.iskuriboh(c)
 		and c:IsType(TYPE_MONSTER)
 		and c:IsAbleToGraveAsCost()
 		and Duel.IsExistingMatchingCard(
@@ -73,27 +85,30 @@ function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 	)
 
 	local tc=g:GetFirst()
+	if not tc then return end
 
-	if tc then
-		e:SetLabel(tc:GetCode())
-		Duel.SendtoGrave(tc,REASON_COST)
-	end
+	e:SetLabel(tc:GetCode())
+	Duel.SendtoGrave(tc,REASON_COST)
 end
 
--- =========================================================
--- MAGIE / PIÈGE "KURIBOH"
--- Ravitaillement Kuriboh exclu
--- =========================================================
+-- =========================================
+-- M/P À AJOUTER
+-- Kuriboh OU Crépuscule OU Multiplicateur
+-- =========================================
 function s.stfilter(c)
-	return c:IsSetCard(0xa4)
-		and c:IsType(TYPE_SPELL+TYPE_TRAP)
+	return c:IsType(TYPE_SPELL+TYPE_TRAP)
+		and (
+			c:IsSetCard(0xa4)
+			or c:IsCode(CREPUSCULE)
+			or c:IsCode(MULTIPLICATEUR)
+		)
 		and not c:IsCode(id)
 		and c:IsAbleToHand()
 end
 
--- =========================================================
+-- =========================================
 -- TARGET
--- =========================================================
+-- =========================================
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	local code=e:GetLabel()
 
@@ -119,13 +134,13 @@ function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
 	)
 end
 
--- =========================================================
+-- =========================================
 -- RÉSOLUTION
--- =========================================================
+-- =========================================
 function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	local code=e:GetLabel()
 
-	-- Ajoute 1 monstre "Kuriboh" de nom différent
+	-- Ajoute 1 Kuriboh de nom différent
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
 
 	local g=Duel.SelectMatchingCard(
@@ -141,10 +156,7 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	)
 
 	local tc=g:GetFirst()
-
-	if not tc then
-		return
-	end
+	if not tc then return end
 
 	if Duel.SendtoHand(tc,nil,REASON_EFFECT)==0 then
 		return
@@ -153,7 +165,6 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 	Duel.ConfirmCards(1-tp,tc)
 
 	-- Puis possibilité de payer 1000 LP
-	-- pour ajouter 1 Magie/Piège "Kuriboh"
 	if not Duel.CheckLPCost(tp,1000) then
 		return
 	end
@@ -169,7 +180,10 @@ function s.activate(e,tp,eg,ep,ev,re,r,rp)
 		return
 	end
 
-	if not Duel.SelectYesNo(tp,aux.Stringid(id,0)) then
+	if not Duel.SelectYesNo(
+		tp,
+		aux.Stringid(id,0)
+	) then
 		return
 	end
 

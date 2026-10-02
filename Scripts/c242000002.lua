@@ -25,15 +25,14 @@ function s.initial_effect(c)
 	e2:SetValue(s.atkval)
 	c:RegisterEffect(e2)
 
-	-- À l'Invocation Spéciale :
-	-- cibler Link Solfachord GY -> SS -> échanger zones avec Beautia
+	-- Invocation -> Link Solfachord GY
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(id,0))
 	e3:SetCategory(CATEGORY_SPECIAL_SUMMON)
 	e3:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e3:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e3:SetProperty(EFFECT_FLAG_DELAY+EFFECT_FLAG_CARD_TARGET)
-	e3:SetCountLimit(1,id)
+	e3:SetCountLimit(1,id+1000)
 	e3:SetTarget(s.mvtg)
 	e3:SetOperation(s.mvop)
 	c:RegisterEffect(e3)
@@ -45,12 +44,14 @@ function s.initial_effect(c)
 	e4:SetType(EFFECT_TYPE_QUICK_O)
 	e4:SetCode(EVENT_CHAINING)
 	e4:SetRange(LOCATION_MZONE)
-	e4:SetCountLimit(1,id+100)
+	e4:SetCountLimit(1,id+2000)
 	e4:SetCondition(s.negcon)
 	e4:SetTarget(s.negtg)
 	e4:SetOperation(s.negop)
 	c:RegisterEffect(e4)
 end
+
+s.listed_series={0x162}
 
 -- =========================================
 -- LINK CUSTOM
@@ -315,13 +316,10 @@ function s.mvop(e,tp,eg,ep,ev,re,r,rp)
 		return
 	end
 
-	-- Il faut une Main Monster Zone libre
 	if Duel.GetLocationCount(tp,LOCATION_MZONE)<=0 then
 		return
 	end
 
-	-- Invoque normalement le Link du GY.
-	-- Omega te fait choisir la Main Monster Zone.
 	if Duel.SpecialSummon(
 		tc,
 		0,
@@ -334,9 +332,6 @@ function s.mvop(e,tp,eg,ep,ev,re,r,rp)
 		return
 	end
 
-	-- Échange les zones :
-	-- Beautia -> zone choisie lors de la Special Summon
-	-- Link -> ancienne EMZ de Beautia
 	Duel.SwapSequence(c,tc)
 end
 
@@ -344,12 +339,21 @@ end
 -- NEGATE + BANISH
 -- =========================================
 function s.negcon(e,tp,eg,ep,ev,re,r,rp)
-	return rp==1-tp
-		and Duel.IsChainDisablable(ev)
+	if rp~=1-tp then
+		return false
+	end
+
+	if re:IsHasType(EFFECT_TYPE_ACTIVATE) then
+		return Duel.IsChainNegatable(ev)
+	end
+
+	return Duel.IsChainDisablable(ev)
 end
 
 function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return true end
+	if chk==0 then
+		return true
+	end
 
 	Duel.SetOperationInfo(
 		0,
@@ -359,6 +363,19 @@ function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)
 		0,
 		0
 	)
+
+	local rc=re:GetHandler()
+
+	if rc and rc:IsAbleToRemove() then
+		Duel.SetOperationInfo(
+			0,
+			CATEGORY_REMOVE,
+			rc,
+			1,
+			1-tp,
+			rc:GetLocation()
+		)
+	end
 end
 
 function s.negop(e,tp,eg,ep,ev,re,r,rp)

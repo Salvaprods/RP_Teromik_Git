@@ -43,6 +43,7 @@ function s.initial_effect(c)
 	c:RegisterEffect(e3)
 
 	-- Adversaire active effet Magie/Piège : détacher 1 ; negate
+	-- UNE FOIS PAR TOUR
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,1))
 	e4:SetCategory(CATEGORY_NEGATE)
@@ -50,6 +51,7 @@ function s.initial_effect(c)
 	e4:SetCode(EVENT_CHAINING)
 	e4:SetProperty(EFFECT_FLAG_DAMAGE_STEP+EFFECT_FLAG_DAMAGE_CAL)
 	e4:SetRange(LOCATION_FZONE)
+	e4:SetCountLimit(1,id+200)
 	e4:SetCondition(s.negcon)
 	e4:SetCost(s.negcost)
 	e4:SetOperation(s.negop)
@@ -229,8 +231,14 @@ function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	)
 
 	local tc=g:GetFirst()
+
 	if tc then
-		tc:RemoveOverlayCard(tp,1,1,REASON_COST)
+		tc:RemoveOverlayCard(
+			tp,
+			1,
+			1,
+			REASON_COST
+		)
 	end
 end
 

@@ -60,18 +60,19 @@ function s.initial_effect(c)
 	c:RegisterEffect(e4)
 end
 
+s.listed_series={0xa4}
+s.listed_names={41999284}
+
 -- =========================================================
 -- INVOCATION SPÉCIALE DEPUIS L'EXTRA
 -- =========================================================
 
 function s.spfilter(c)
-	return c:IsSetCard(0xa4)
+	return (c:IsSetCard(0xa4) or c:IsCode(41999284))
 		and c:IsType(TYPE_MONSTER)
 		and c:IsAbleToDeckAsCost()
 end
 
--- Vérifie qu'après avoir mélangé les 3 cartes,
--- une zone est disponible pour le Fusion depuis l'Extra
 function s.spcheck(g,tp,sc)
 	return Duel.GetLocationCountFromEx(tp,tp,g,sc)>0
 end
@@ -138,17 +139,14 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp,c)
 		return
 	end
 
-	-- Enregistre les 3 Kuriboh utilisés
 	c:SetMaterial(g)
 
-	-- Révèle ceux sélectionnés depuis la main
 	local hg=g:Filter(Card.IsLocation,nil,LOCATION_HAND)
 
 	if hg:GetCount()>0 then
 		Duel.ConfirmCards(1-tp,hg)
 	end
 
-	-- Mélange les 3 Kuriboh dans le Deck
 	Duel.SendtoDeck(
 		g,
 		nil,
@@ -227,11 +225,7 @@ end
 function s.effop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 
-	-- =====================================================
-	-- OPTION 1 :
-	-- Aucun dommage de combat jusqu'à la fin
-	-- de votre prochain tour
-	-- =====================================================
+	-- Option 1 : aucun dommage de combat
 	if e:GetLabel()==0 then
 		local e1=Effect.CreateEffect(c)
 		e1:SetType(EFFECT_TYPE_FIELD)
@@ -241,8 +235,6 @@ function s.effop(e,tp,eg,ep,ev,re,r,rp)
 
 		local ct=1
 
-		-- Si activé pendant notre propre tour,
-		-- il faut traverser cette End Phase puis la prochaine
 		if Duel.GetTurnPlayer()==tp then
 			ct=2
 		end
@@ -254,11 +246,7 @@ function s.effop(e,tp,eg,ep,ev,re,r,rp)
 
 		Duel.RegisterEffect(e1,tp)
 
-	-- =====================================================
-	-- OPTION 2 :
-	-- Bannir jusqu'à X cartes,
-	-- X = noms différents parmi les 3 Kuriboh utilisés
-	-- =====================================================
+	-- Option 2 : bannir jusqu'à X cartes
 	else
 		local ct=s.getnamecount(c)
 
@@ -344,12 +332,10 @@ function s.negop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local rc=re:GetHandler()
 
-	-- Annule l'effet
 	if not Duel.NegateEffect(ev) then
 		return
 	end
 
-	-- Et si vous le faites, détruisez le monstre
 	if not rc
 		or not rc:IsRelateToEffect(re)
 		or not rc:IsDestructable() then
@@ -363,7 +349,6 @@ function s.negop(e,tp,eg,ep,ev,re,r,rp)
 		return
 	end
 
-	-- Et si vous le faites, gagne 1000 ATK
 	if c:IsFaceup()
 		and c:IsRelateToEffect(e) then
 
