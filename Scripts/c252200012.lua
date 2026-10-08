@@ -2,20 +2,21 @@
 local s,id=GetID()
 
 function s.initial_effect(c)
-	-- Quick Fusion depuis la main
+	-- Main Phase : révéler cette carte puis Fusion Summon
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_FUSION_SUMMON)
-	e1:SetType(EFFECT_TYPE_QUICK_O)
-	e1:SetCode(EVENT_FREE_CHAIN)
+	e1:SetType(EFFECT_TYPE_IGNITION)
 	e1:SetRange(LOCATION_HAND)
 	e1:SetCountLimit(1,id)
+	e1:SetCondition(s.fuscon)
 	e1:SetCost(s.fuscost)
 	e1:SetTarget(s.fustg)
 	e1:SetOperation(s.fusop)
 	c:RegisterEffect(e1)
 
-	-- Main Phase : se mélanger dans le Deck puis chercher/invoquer
+	-- Main Phase : mélanger Diliagus dans le Deck
+	-- puis prendre 1 autre Transformage du Deck
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,1))
 	e2:SetCategory(CATEGORY_SEARCH+CATEGORY_TOHAND+CATEGORY_SPECIAL_SUMMON)
@@ -29,34 +30,25 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 
+s.listed_series={0x6e7}
+
 -- =========================================
--- QUICK FUSION
--- DILIAGUS EST OBLIGATOIREMENT MATÉRIEL
+-- EFFET 1 : FUSION
 -- =========================================
+function s.fuscon(e,tp,eg,ep,ev,re,r,rp)
+	local ph=Duel.GetCurrentPhase()
+	return Duel.GetTurnPlayer()==tp
+		and (ph==PHASE_MAIN1 or ph==PHASE_MAIN2)
+end
+
 function s.fuscost(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return true end
-	Duel.ConfirmCards(1-tp,e:GetHandler())
-end
+	local c=e:GetHandler()
 
-function s.hestfilter(c)
-	return c:IsCode(252200000)
-		and c:IsType(TYPE_MONSTER)
-end
-
-function s.getmat(tp)
-	local mg=Duel.GetFusionMaterial(tp)
-
-	-- Peut aussi utiliser 1 Hestiaros depuis le Deck
-	local hg=Duel.GetMatchingGroup(
-		s.hestfilter,tp,LOCATION_DECK,0,nil
-	)
-
-	local hc=hg:GetFirst()
-	if hc then
-		mg:AddCard(hc)
+	if chk==0 then
+		return c:IsLocation(LOCATION_HAND)
 	end
 
-	return mg
+	Duel.ConfirmCards(1-tp,c)
 end
 
 function s.fusfilter(fc,e,tp,mg,gc,chkf)
@@ -75,36 +67,43 @@ end
 function s.fustg(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()
 	local chkf=tp+0x200
-	local mg=s.getmat(tp)
+
+	-- Main + Terrain uniquement
+	local mg=Duel.GetFusionMaterial(tp)
 
 	if chk==0 then
-		return Duel.IsExistingMatchingCard(
-			s.fusfilter,
-			tp,
-			LOCATION_EXTRA,
-			0,
-			1,
-			nil,
-			e,tp,mg,c,chkf
-		)
+		return c:IsLocation(LOCATION_HAND)
+			and Duel.IsExistingMatchingCard(
+				s.fusfilter,
+				tp,
+				LOCATION_EXTRA,
+				0,
+				1,
+				nil,
+				e,tp,mg,c,chkf
+			)
 	end
 
 	Duel.SetOperationInfo(
-		0,CATEGORY_SPECIAL_SUMMON,nil,1,tp,LOCATION_EXTRA
+		0,
+		CATEGORY_SPECIAL_SUMMON,
+		nil,
+		1,
+		tp,
+		LOCATION_EXTRA
 	)
 end
 
 function s.fusop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 
-	-- Diliagus doit toujours être dans la main
 	if not c:IsRelateToEffect(e)
 		or not c:IsLocation(LOCATION_HAND) then
 		return
 	end
 
 	local chkf=tp+0x200
-	local mg=s.getmat(tp)
+	local mg=Duel.GetFusionMaterial(tp)
 
 	local fg=Duel.GetMatchingGroup(
 		s.fusfilter,
@@ -115,16 +114,18 @@ function s.fusop(e,tp,eg,ep,ev,re,r,rp)
 		e,tp,mg,c,chkf
 	)
 
-	if fg:GetCount()==0 then return end
+	if fg:GetCount()==0 then
+		return
+	end
 
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_SPSUMMON)
-	local fc=fg:Select(tp,1,1,nil):GetFirst()
 
+	local fc=fg:Select(tp,1,1,nil):GetFirst()
 	if not fc then return end
 
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_FMATERIAL)
 
-	-- c = Diliagus obligatoire
+	-- Diliagus est obligatoire
 	local mat=Duel.SelectFusionMaterial(
 		tp,
 		fc,
@@ -133,17 +134,23 @@ function s.fusop(e,tp,eg,ep,ev,re,r,rp)
 		chkf
 	)
 
-	if not mat or mat:GetCount()==0 then return end
+	if not mat or mat:GetCount()==0 then
+		return
+	end
 
 	fc:SetMaterial(mat)
 
 	Duel.SendtoGrave(
 		mat,
-		REASON_EFFECT+REASON_MATERIAL+REASON_FUSION
+		REASON_EFFECT+
+		REASON_MATERIAL+
+		REASON_FUSION
 	)
 
-	-- Vérifie la place APRÈS départ des Matériels
-	if Duel.GetLocationCountFromEx(tp,tp,nil,fc)<=0 then
+	-- Vérification après départ des Matériels
+	if Duel.GetLocationCountFromEx(
+		tp,tp,nil,fc
+	)<=0 then
 		return
 	end
 
@@ -163,10 +170,11 @@ function s.fusop(e,tp,eg,ep,ev,re,r,rp)
 end
 
 -- =========================================
--- MAIN PHASE : SHUFFLE DILIAGUS -> SEARCH/SS
+-- EFFET 2 : SHUFFLE -> AJOUTER / SS
 -- =========================================
 function s.thcon(e,tp,eg,ep,ev,re,r,rp)
 	local ph=Duel.GetCurrentPhase()
+
 	return Duel.GetTurnPlayer()==tp
 		and (ph==PHASE_MAIN1 or ph==PHASE_MAIN2)
 end
@@ -179,7 +187,10 @@ function s.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	end
 
 	Duel.SendtoDeck(
-		c,nil,SEQ_DECKSHUFFLE,REASON_COST
+		c,
+		nil,
+		SEQ_DECKSHUFFLE,
+		REASON_COST
 	)
 end
 
@@ -201,24 +212,48 @@ end
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
 		return Duel.IsExistingMatchingCard(
-			s.thfilter,tp,LOCATION_DECK,0,1,nil,e,tp
+			s.thfilter,
+			tp,
+			LOCATION_DECK,
+			0,
+			1,
+			nil,
+			e,tp
 		)
 	end
 end
 
 function s.thop(e,tp,eg,ep,ev,re,r,rp)
-	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATOHAND)
+	Duel.Hint(
+		HINT_SELECTMSG,
+		tp,
+		HINTMSG_ATOHAND
+	)
 
 	local g=Duel.SelectMatchingCard(
-		tp,s.thfilter,tp,LOCATION_DECK,0,1,1,nil,e,tp
+		tp,
+		s.thfilter,
+		tp,
+		LOCATION_DECK,
+		0,
+		1,
+		1,
+		nil,
+		e,tp
 	)
 
 	local tc=g:GetFirst()
 	if not tc then return end
 
 	local b1=tc:IsAbleToHand()
-	local b2=Duel.GetLocationCount(tp,LOCATION_MZONE)>0
-		and tc:IsCanBeSpecialSummoned(e,0,tp,false,false)
+
+	local b2=Duel.GetLocationCount(
+		tp,
+		LOCATION_MZONE
+	)>0
+		and tc:IsCanBeSpecialSummoned(
+			e,0,tp,false,false
+		)
 
 	local op=0
 
@@ -233,12 +268,20 @@ function s.thop(e,tp,eg,ep,ev,re,r,rp)
 	end
 
 	if op==0 then
-		if Duel.SendtoHand(tc,nil,REASON_EFFECT)>0 then
+		if Duel.SendtoHand(
+			tc,nil,REASON_EFFECT
+		)>0 then
 			Duel.ConfirmCards(1-tp,tc)
 		end
 	else
 		Duel.SpecialSummon(
-			tc,0,tp,tp,false,false,POS_FACEUP
+			tc,
+			0,
+			tp,
+			tp,
+			false,
+			false,
+			POS_FACEUP
 		)
 	end
 end

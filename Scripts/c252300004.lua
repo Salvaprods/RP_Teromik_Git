@@ -45,6 +45,9 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 
+s.listed_series={0xd1f}
+s.listed_names={252300002}
+
 -- =========================================
 -- PROCÉDURE XYZ
 -- =========================================
@@ -95,6 +98,10 @@ function s.negcon(e,tp,eg,ep,ev,re,r,rp)
 		)
 end
 
+function s.disfilter(c)
+	return c:IsDiscardable()
+end
+
 function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	local c=e:GetHandler()
 
@@ -104,14 +111,44 @@ function s.negcost(e,tp,eg,ep,ev,re,r,rp,chk)
 			1,
 			REASON_COST
 		)
+		and Duel.IsExistingMatchingCard(
+			s.disfilter,
+			tp,
+			LOCATION_HAND,
+			0,
+			1,
+			nil
+		)
 	end
 
+	-- Détacher 1 Matériel
 	c:RemoveOverlayCard(
 		tp,
 		1,
 		1,
 		REASON_COST
 	)
+
+	-- Défausser 1 carte
+	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_DISCARD)
+
+	local g=Duel.SelectMatchingCard(
+		tp,
+		s.disfilter,
+		tp,
+		LOCATION_HAND,
+		0,
+		1,
+		1,
+		nil
+	)
+
+	if g:GetCount()>0 then
+		Duel.SendtoGrave(
+			g,
+			REASON_COST+REASON_DISCARD
+		)
+	end
 end
 
 function s.negtg(e,tp,eg,ep,ev,re,r,rp,chk)

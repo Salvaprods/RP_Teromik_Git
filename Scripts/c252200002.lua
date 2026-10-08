@@ -2,7 +2,7 @@
 local s,id=GetID()
 
 function s.initial_effect(c)
-	-- Invocation Spéciale inhérente depuis la main
+	-- Invocation Spéciale depuis la main
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_FIELD)
 	e1:SetCode(EFFECT_SPSUMMON_PROC)
@@ -15,7 +15,7 @@ function s.initial_effect(c)
 	-- Si Invoquée Spécialement
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,0))
-	e2:SetCategory(CATEGORY_TOGRAVE+CATEGORY_COIN)
+	e2:SetCategory(CATEGORY_TOGRAVE+CATEGORY_COIN+CATEGORY_DRAW)
 	e2:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_TRIGGER_O)
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	e2:SetProperty(EFFECT_FLAG_DELAY)
@@ -26,25 +26,36 @@ function s.initial_effect(c)
 	c:RegisterEffect(e2)
 end
 
+s.listed_series={0x6e7}
+
 -- ==========================================
--- INVOCATION SPÉCIALE INHÉRENTE
+-- INVOCATION SPÉCIALE DEPUIS LA MAIN
 -- ==========================================
 function s.spfilter(c)
-	return c:IsFaceup() and c:IsSetCard(0x6e7)
+	return c:IsFaceup()
+		and c:IsSetCard(0x6e7)
+		and c:IsType(TYPE_MONSTER)
 end
 
 function s.spcon(e,c)
 	if c==nil then return true end
+
 	local tp=c:GetControler()
+
 	return Duel.GetLocationCount(tp,LOCATION_MZONE)>0
 		and Duel.IsExistingMatchingCard(
-			s.spfilter,tp,LOCATION_MZONE,0,1,nil
+			s.spfilter,
+			tp,
+			LOCATION_MZONE,
+			0,
+			1,
+			nil
 		)
 end
 
 -- ==========================================
--- COÛT
--- Envoyer 1 monstre Transformage non-Niveau 3
+-- COÛT :
+-- ENVOYER 1 TRANSFORMAGE NON-NIVEAU 3
 -- ==========================================
 function s.costfilter(c)
 	return c:IsSetCard(0x6e7)
@@ -56,25 +67,50 @@ end
 function s.cost(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then
 		return Duel.IsExistingMatchingCard(
-			s.costfilter,tp,LOCATION_DECK,0,1,nil
+			s.costfilter,
+			tp,
+			LOCATION_DECK,
+			0,
+			1,
+			nil
 		)
 	end
 
 	Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_TOGRAVE)
 
 	local g=Duel.SelectMatchingCard(
-		tp,s.costfilter,tp,LOCATION_DECK,0,1,1,nil
+		tp,
+		s.costfilter,
+		tp,
+		LOCATION_DECK,
+		0,
+		1,
+		1,
+		nil
 	)
 
-	Duel.SendtoGrave(g,REASON_COST)
+	Duel.SendtoGrave(
+		g,
+		REASON_COST
+	)
 end
 
 -- ==========================================
 -- LANCER DE PIÈCE
 -- ==========================================
 function s.target(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return true end
-	Duel.SetOperationInfo(0,CATEGORY_COIN,nil,0,tp,1)
+	if chk==0 then
+		return true
+	end
+
+	Duel.SetOperationInfo(
+		0,
+		CATEGORY_COIN,
+		nil,
+		0,
+		tp,
+		1
+	)
 end
 
 function s.operation(e,tp,eg,ep,ev,re,r,rp)
@@ -85,6 +121,9 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 
 	-- ======================================
 	-- FACE
+	-- L'adversaire ne peut pas répondre
+	-- avec des effets de monstre à tes
+	-- cartes/effets Transformage
 	-- ======================================
 	if res==1 then
 		local e1=Effect.CreateEffect(e:GetHandler())
@@ -98,24 +137,24 @@ function s.operation(e,tp,eg,ep,ev,re,r,rp)
 
 	-- ======================================
 	-- PILE
+	-- L'adversaire pioche 2
 	-- ======================================
 	else
-		local e1=Effect.CreateEffect(e:GetHandler())
-		e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-		e1:SetCode(EVENT_SPSUMMON_SUCCESS)
-		e1:SetOperation(s.recop)
-		e1:SetReset(RESET_PHASE+PHASE_END)
-		Duel.RegisterEffect(e1,tp)
+		Duel.Draw(
+			1-tp,
+			2,
+			REASON_EFFECT
+		)
 	end
 end
 
 -- ==========================================
--- FACE
--- L'adversaire ne peut pas répondre avec
--- un effet de monstre à une carte/effet Transformage
+-- FACE :
+-- BLOQUE UNIQUEMENT LES EFFETS DE MONSTRE
+-- EN RÉPONSE À UNE CARTE/EFFET TRANSFORMAGE
 -- ==========================================
 function s.aclimit(e,re,tp)
-	-- Bloque uniquement les effets de monstre
+	-- Seulement les effets de monstre adverses
 	if not re:IsActiveType(TYPE_MONSTER) then
 		return false
 	end
@@ -126,7 +165,7 @@ function s.aclimit(e,re,tp)
 		return false
 	end
 
-	-- Dernier effet déjà présent dans la Chaîne
+	-- Effet auquel l'adversaire essaie de répondre
 	local te=Duel.GetChainInfo(
 		ct,
 		CHAININFO_TRIGGERING_EFFECT
@@ -137,40 +176,15 @@ function s.aclimit(e,re,tp)
 		CHAININFO_TRIGGERING_PLAYER
 	)
 
-	-- Il faut que ce soit NOTRE activation
-	if not te or p~=e:GetHandlerPlayer() then
+	-- Ça doit être notre activation
+	if not te
+		or p~=e:GetHandlerPlayer() then
 		return false
 	end
 
 	local tc=te:GetHandler()
 
-	-- Et que la carte soit "Transformage"
+	-- Et la carte activée doit être "Transformage"
 	return tc~=nil
 		and tc:IsSetCard(0x6e7)
-end
-
--- ==========================================
--- PILE
--- Chaque fois que vous Invoquez Spécialement
--- un ou plusieurs Transformage :
--- adversaire +100 LP
--- ==========================================
-function s.recfilter(c,tp)
-	return c:IsControler(tp)
-		and c:IsSetCard(0x6e7)
-end
-
-function s.recop(e,tp,eg,ep,ev,re,r,rp)
-	if eg:IsExists(
-		s.recfilter,
-		1,
-		nil,
-		tp
-	) then
-		Duel.Recover(
-			1-tp,
-			100,
-			REASON_EFFECT
-		)
-	end
 end

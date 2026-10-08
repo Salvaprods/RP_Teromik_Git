@@ -74,6 +74,7 @@ s.listed_series={0xac}
 
 -- =========================================
 -- EFFET 1 : SUMMON / DETACH
+-- MAIN + LES DEUX TERRAINS UNIQUEMENT
 -- =========================================
 function s.detfilter(c)
 	return c:IsType(TYPE_XYZ)
@@ -96,8 +97,8 @@ function s.attg(e,tp,eg,ep,ev,re,r,rp,chk)
 		return Duel.IsExistingMatchingCard(
 			s.attachfilter,
 			tp,
-			LOCATION_HAND+LOCATION_ONFIELD+LOCATION_GRAVE,
-			LOCATION_ONFIELD+LOCATION_GRAVE,
+			LOCATION_HAND+LOCATION_ONFIELD,
+			LOCATION_ONFIELD,
 			1,
 			c,
 			c
@@ -119,8 +120,8 @@ function s.atop(e,tp,eg,ep,ev,re,r,rp)
 		tp,
 		s.attachfilter,
 		tp,
-		LOCATION_HAND+LOCATION_ONFIELD+LOCATION_GRAVE,
-		LOCATION_ONFIELD+LOCATION_GRAVE,
+		LOCATION_HAND+LOCATION_ONFIELD,
+		LOCATION_ONFIELD,
 		1,
 		1,
 		c,

@@ -1,72 +1,58 @@
--- Reino Orcustré
+-- Royaume Orcustré
 local s,id=GetID()
 
 function s.initial_effect(c)
-	-- Activation : vous pouvez envoyer 1 monstre "Orcust" du Deck au Cimetière
+	-- Activation : optionnellement envoyer 1 monstre Orcust du Deck au GY
 	local e1=Effect.CreateEffect(c)
 	e1:SetDescription(aux.Stringid(id,0))
 	e1:SetCategory(CATEGORY_TOGRAVE)
 	e1:SetType(EFFECT_TYPE_ACTIVATE)
 	e1:SetCode(EVENT_FREE_CHAIN)
-	e1:SetCountLimit(1,id,EFFECT_COUNT_CODE_OATH)
+	e1:SetCountLimit(1,id+1000,EFFECT_COUNT_CODE_OATH)
 	e1:SetTarget(s.acttg)
 	e1:SetOperation(s.actop)
 	c:RegisterEffect(e1)
 
-	-- L'adversaire ne peut pas cibler les monstres "Orcust"
-	-- dans votre Zone Monstre Extra
+	-- Durant votre End Phase :
+	-- 1 carte Orcust bannie -> GY
 	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_FIELD)
-	e2:SetCode(EFFECT_CANNOT_BE_EFFECT_TARGET)
+	e2:SetDescription(aux.Stringid(id,1))
+	e2:SetCategory(CATEGORY_TOGRAVE)
+	e2:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
+	e2:SetCode(EVENT_PHASE+PHASE_END)
+	e2:SetProperty(EFFECT_FLAG_CARD_TARGET)
 	e2:SetRange(LOCATION_SZONE)
-	e2:SetTargetRange(LOCATION_MZONE,0)
-	e2:SetTarget(s.tgtg)
-	e2:SetValue(aux.tgoval)
+	e2:SetCondition(s.retcon)
+	e2:SetTarget(s.rettg)
+	e2:SetOperation(s.retop)
 	c:RegisterEffect(e2)
 
-	-- Durant votre End Phase :
-	-- ciblez 1 carte "Orcust" bannie ; renvoyez-la au Cimetière
+	-- Remplacement de destruction
 	local e3=Effect.CreateEffect(c)
-	e3:SetDescription(aux.Stringid(id,1))
-	e3:SetCategory(CATEGORY_TOGRAVE)
-	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_O)
-	e3:SetCode(EVENT_PHASE+PHASE_END)
-	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
+	e3:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	e3:SetCode(EFFECT_DESTROY_REPLACE)
 	e3:SetRange(LOCATION_SZONE)
-	e3:SetCountLimit(1)
-	e3:SetCondition(s.retcon)
-	e3:SetTarget(s.rettg)
-	e3:SetOperation(s.retop)
+	e3:SetTarget(s.desreptg)
+	e3:SetValue(s.desrepval)
+	e3:SetOperation(s.repop)
 	c:RegisterEffect(e3)
 
-	-- Si une ou plusieurs cartes "Orcust" que vous contrôlez
-	-- vont être détruites par un effet :
-	-- envoyez cette carte au Cimetière à la place
+	-- Remplacement de bannissement
 	local e4=Effect.CreateEffect(c)
 	e4:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-	e4:SetCode(EFFECT_DESTROY_REPLACE)
+	e4:SetCode(EFFECT_SEND_REPLACE)
 	e4:SetRange(LOCATION_SZONE)
-	e4:SetTarget(s.desreptg)
-	e4:SetValue(s.desrepval)
+	e4:SetTarget(s.rmreptg)
+	e4:SetValue(s.rmrepval)
 	e4:SetOperation(s.repop)
 	c:RegisterEffect(e4)
-
-	-- Si une ou plusieurs cartes "Orcust" que vous contrôlez
-	-- vont être bannies par un effet :
-	-- envoyez cette carte au Cimetière à la place
-	local e5=Effect.CreateEffect(c)
-	e5:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-	e5:SetCode(EFFECT_SEND_REPLACE)
-	e5:SetRange(LOCATION_SZONE)
-	e5:SetTarget(s.rmreptg)
-	e5:SetValue(s.rmrepval)
-	e5:SetOperation(s.repop)
-	c:RegisterEffect(e5)
 end
 
--- =========================================================
--- ACTIVATION : ENVOI OPTIONNEL DEPUIS LE DECK
--- =========================================================
+s.listed_series={0x11b}
+
+-- =========================================
+-- ACTIVATION : SEND ORCUST DECK -> GY
+-- =========================================
 function s.deckfilter(c)
 	return c:IsSetCard(0x11b)
 		and c:IsType(TYPE_MONSTER)
@@ -91,8 +77,10 @@ function s.actop(e,tp,eg,ep,ev,re,r,rp)
 		return
 	end
 
-	-- L'envoi est OPTIONNEL
-	if not Duel.SelectYesNo(tp,aux.Stringid(id,0)) then
+	if not Duel.SelectYesNo(
+		tp,
+		aux.Stringid(id,0)
+	) then
 		return
 	end
 
@@ -109,23 +97,17 @@ function s.actop(e,tp,eg,ep,ev,re,r,rp)
 		nil
 	)
 
-	if #g>0 then
-		Duel.SendtoGrave(g,REASON_EFFECT)
+	if g:GetCount()>0 then
+		Duel.SendtoGrave(
+			g,
+			REASON_EFFECT
+		)
 	end
 end
 
--- =========================================================
--- PROTECTION DES MONSTRES ORCUST EN EXTRA MONSTER ZONE
--- =========================================================
-function s.tgtg(e,c)
-	return c:IsFaceup()
-		and c:IsSetCard(0x11b)
-		and c:GetSequence()>4
-end
-
--- =========================================================
--- END PHASE : CARTE ORCUST BANNIE -> CIMETIÈRE
--- =========================================================
+-- =========================================
+-- END PHASE : ORCUST BANNIE -> GY
+-- =========================================
 function s.retcon(e,tp,eg,ep,ev,re,r,rp)
 	return Duel.GetTurnPlayer()==tp
 end
@@ -133,6 +115,7 @@ end
 function s.retfilter(c)
 	return c:IsFaceup()
 		and c:IsSetCard(0x11b)
+		and c:IsAbleToGrave()
 end
 
 function s.rettg(e,tp,eg,ep,ev,re,r,rp,chk,chkc)
@@ -181,8 +164,8 @@ function s.retop(e,tp,eg,ep,ev,re,r,rp)
 
 	if tc
 		and tc:IsRelateToEffect(e)
-		and tc:IsFaceup()
-		and tc:IsLocation(LOCATION_REMOVED) then
+		and tc:IsLocation(LOCATION_REMOVED)
+		and tc:IsAbleToGrave() then
 
 		Duel.SendtoGrave(
 			tc,
@@ -191,9 +174,9 @@ function s.retop(e,tp,eg,ep,ev,re,r,rp)
 	end
 end
 
--- =========================================================
--- REMPLACEMENT : DESTRUCTION
--- =========================================================
+-- =========================================
+-- REMPLACEMENT DE DESTRUCTION
+-- =========================================
 function s.desrepfilter(c,tp)
 	return c:IsControler(tp)
 		and c:IsLocation(LOCATION_ONFIELD)
@@ -228,12 +211,9 @@ function s.desrepval(e,c)
 	)
 end
 
--- =========================================================
--- REMPLACEMENT : BANNISSEMENT
--- EFFECT_SEND_REPLACE permet ici d'empêcher l'envoi
--- vers LOCATION_REMOVED et d'envoyer cette Magie au GY
--- à la place.
--- =========================================================
+-- =========================================
+-- REMPLACEMENT DE BANNISSEMENT
+-- =========================================
 function s.rmrepfilter(c,tp)
 	return c:IsControler(tp)
 		and c:IsLocation(LOCATION_ONFIELD)
@@ -269,10 +249,9 @@ function s.rmrepval(e,c)
 	)
 end
 
--- =========================================================
--- ENVOI DE "ROYAUME ORCUSTRÉ" AU CIMETIÈRE À LA PLACE
--- Ce n'est PAS un effet qui s'active / aucune nouvelle chaîne.
--- =========================================================
+-- =========================================
+-- ROYAUME ORCUSTRÉ -> GY À LA PLACE
+-- =========================================
 function s.repop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 
