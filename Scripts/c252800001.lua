@@ -228,6 +228,7 @@ function s.rmreptg(e,tp,eg,ep,ev,re,r,rp,chk)
 
 	if chk==0 then
 		return c:IsAbleToGrave()
+			and bit.band(r,REASON_EFFECT)~=0
 			and eg:IsExists(
 				s.rmrepfilter,
 				1,
@@ -255,8 +256,8 @@ end
 function s.repop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 
-	if c:IsRelateToEffect(e)
-		and c:IsLocation(LOCATION_SZONE) then
+	if c:IsLocation(LOCATION_SZONE)
+		and c:IsAbleToGrave() then
 
 		Duel.SendtoGrave(
 			c,
