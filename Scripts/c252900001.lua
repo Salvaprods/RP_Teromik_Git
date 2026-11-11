@@ -131,6 +131,7 @@ function s.addfilter(c,p)
 	return c:IsControler(p)
 		and c:IsLocation(LOCATION_HAND)
 		and c:IsPreviousLocation(LOCATION_DECK)
+		and not c:IsReason(REASON_DRAW)
 end
 
 function s.drcon(e,tp,eg,ep,ev,re,r,rp)
